@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WHOOP Dashboard</title>
+<style>
+  :root {
+    --ink: #0a0e14;
+    --panel: #11161f;
+    --panel-2: #161d28;
+    --line: #232c3a;
+    --mute: #6b7889;
+    --text: #d4dce6;
+    --bright: #f2f6fb;
+    --strain: #18a0fb;     /* blue */
+    --recover: #16c172;    /* green */
+    --sleep: #8b6df0;      /* violet */
+    --warn: #f0c14b;       /* amber */
+    --low: #f0584b;        /* red */
+    --mono: 'SFMono-Regular', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+    --sans: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.4;
+    padding: 28px 20px 60px;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  /* ---- Header ---- */
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  .brand {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--bright);
+    font-weight: 600;
+  }
+  .brand span { color: var(--strain); }
+  .who {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--mute);
+  }
+  .who b { color: var(--text); font-weight: 500; }
+
+  /* ---- Token gate ---- */
+  .gate {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 28px;
+    max-width: 620px;
+    margin: 40px auto;
+  }
+  .gate h1 {
+    font-size: 20px;
+    color: var(--bright);
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+  .gate p { color: var(--mute); font-size: 14px; margin-bottom: 8px; }
+  .gate ol { color: var(--mute); font-size: 13px; margin: 14px 0 20px 18px; }
+  .gate ol li { margin-bottom: 6px; }
+  .gate a { color: var(--strain); text-decoration: none; }
+  .gate a:hover { text-decoration: underline; }
+  .field { display: flex; gap: 10px; flex-wrap: wrap; }
+  input[type="text"], input[type="password"] {
+    flex: 1;
+    min-width: 240px;
+    background: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 12px 14px;
+    color: var(--bright);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  input:focus { outline: 2px solid var(--strain); outline-offset: 1px; }
+  button {
+    background: var(--strain);
+    color: #02121f;
+    border: none;
+    border-radius: 9px;
+    padding: 12px 22px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  button:hover { filter: brightness(1.08); }
+  button.ghost {
+    background: transparent;
+    color: var(--mute);
+    border: 1px solid var(--line);
+  }
+  button.ghost:hover { color: var(--text); filter: none; }
+  .err { color: var(--low); font-size: 13px; margin-top: 14px; font-family: var(--mono); }
+  .hint { font-size: 12px; color: var(--mute); margin-top: 12px; }
+
+  /* ---- Grid ---- */
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .span4 { grid-column: span 4; }
+  .span6 { grid-column: span 6; }
+  .span8 { grid-column: span 8; }
+  .span12 { grid-column: span 12; }
+  @media (max-width: 820px) {
+    .span4, .span6, .span8 { grid-column: span 12; }
+  }
+  .label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin-bottom: 14px;
+  }
+
+  /* ---- Ring metric ---- */
+  .ring-wrap { display: flex; align-items: center; gap: 18px; }
+  .ring { position: relative; width: 96px; height: 96px; flex-shrink: 0; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .val {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .ring .num { font-size: 26px; font-weight: 700; color: var(--bright); font-family: var(--mono); }
+  .ring .unit { font-size: 10px; color: var(--mute); }
+  .ring-meta { font-size: 13px; }
+  .ring-meta .big { font-size: 15px; color: var(--text); font-weight: 600; margin-bottom: 3px; }
+  .ring-meta .sub { color: var(--mute); font-family: var(--mono); font-size: 12px; }
+
+  /* ---- Stat rows ---- */
+  .stat { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .stat:last-child { border-bottom: none; }
+  .stat .k { color: var(--mute); font-size: 13px; }
+  .stat .v { color: var(--bright); font-family: var(--mono); font-size: 14px; font-weight: 600; }
+
+  /* ---- Bars chart ---- */
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 140px; margin-top: 6px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; border-radius: 4px 4px 0 0; min-height: 2px; transition: height .4s ease; }
+  .bar-x { font-family: var(--mono); font-size: 9px; color: var(--mute); }
+  .legend { display: flex; gap: 16px; margin-top: 14px; font-size: 11px; color: var(--mute); font-family: var(--mono); }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+
+  /* ---- Workout list ---- */
+  .wk { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .wk:last-child { border-bottom: none; }
+  .wk .name { color: var(--bright); font-size: 14px; font-weight: 600; text-transform: capitalize; }
+  .wk .date { color: var(--mute); font-size: 11px; font-family: var(--mono); }
+  .wk .strain { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--strain); }
+
+  .sleep-stages { display: flex; height: 22px; border-radius: 5px; overflow: hidden; margin: 10px 0 12px; }
+  .sleep-stages div { height: 100%; }
+
+  .loading { text-align: center; padding: 60px; color: var(--mute); font-family: var(--mono); font-size: 13px; }
+  .hidden { display: none; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+
+<!-- TOKEN GATE -->
+<div id="gate" class="gate">
+  <h1>Connect your WHOOP data</h1>
+  <p>This dashboard pulls your real data directly from the WHOOP v2 API. It needs a personal access token — nothing is sent anywhere except WHOOP's own servers from your browser.</p>
+  <ol>
+    <li>Go to the <a href="https://developer-dashboard.whoop.com" target="_blank" rel="noopener">WHOOP Developer Dashboard</a> and create an app.</li>
+    <li>Add scopes: <code>read:recovery read:sleep read:cycles read:workout read:profile read:body_measurement</code></li>
+    <li>Run the OAuth flow to get an <b>access token</b>, then paste it below.</li>
+  </ol>
+  <div class="field">
+    <input type="password" id="token" placeholder="Paste your access token" autocomplete="off" spellcheck="false">
+    <button onclick="connect()">Load my data</button>
+  </div>
+  <div class="hint">Token stays in this page's memory only — it is never stored or transmitted to anyone but api.prod.whoop.com.</div>
+  <div id="gate-err" class="err"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="app" class="hidden">
+  <header>
+    <div class="brand">WHOOP<span>·</span>DASH</div>
+    <div class="who">athlete <b id="who-name">—</b></div>
+  </header>
+
+  <div class="toolbar">
+    <button class="ghost" onclick="loadAll()">↻ Refresh</button>
+    <button class="ghost" onclick="logout()">Disconnect</button>
+  </div>
+
+  <div id="loading" class="loading">Pulling your data from WHOOP…</div>
+
+  <div id="dash" class="grid hidden">
+    <!-- Recovery ring -->
+    <div class="card span4">
+      <div class="label">Latest recovery</div>
+      <div class="ring-wrap">
+        <div class="ring">
+          <svg width="96" height="96">
+            <circle cx="48" cy="48" r="40" stroke="var(--panel-2)" stroke-width="9" fill="none"/>
+            <circle id="rec-arc" cx="48" cy="48" r="40" stroke="var(--recover)" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/>
+          </svg>
+          <div class="val"><span class="num" id="rec-num">—</span><span class="unit">recovery</span></div>
+        </div>
+        <div class="ring-meta">
+          <div class="big" id="rec-state">—</div>
+          <div class="sub">RHR <span id="rec-rhr">—</span> bpm</div>
+          <div class="sub">HRV <span id="rec-hrv">—</span> ms</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strain ring -->
+    <div class="card span4">
+      <div class="label">Today's strain</div>
+      <div class="ring-wrap">
+        <div class="ring">
+          <svg width="96" height="96">
+            <circle cx="48" cy="48" r="40" stroke="var(--panel-2)" stroke-width="9" fill="none"/>
+            <circle id="str-arc" cx="48" cy="48" r="40" stroke="var(--strain)" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/>
+          </svg>
+          <div class="val"><span class="num" id="str-num">—</span><span class="unit">/ 21</span></div>
+        </div>
+        <div class="ring-meta">
+          <div class="big">Day strain</div>
+          <div class="sub">avg HR <span id="str-avghr">—</span></div>
+          <div class="sub">max HR <span id="str-maxhr">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sleep ring -->
+    <div class="card span4">
+      <div class="label">Last sleep</div>
+      <div class="ring-wrap">
+        <div class="ring">
+          <svg width="96" height="96">
+            <circle cx="48" cy="48" r="40" stroke="var(--panel-2)" stroke-width="9" fill="none"/>
+            <circle id="slp-arc" cx="48" cy="48" r="40" stroke="var(--sleep)" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/>
+          </svg>
+          <div class="val"><span class="num" id="slp-num">—</span><span class="unit">% perf</span></div>
+        </div>
+        <div class="ring-meta">
+          <div class="big" id="slp-dur">—</div>
+          <div class="sub">eff <span id="slp-eff">—</span>%</div>
+          <div class="sub">resp <span id="slp-resp">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recovery trend -->
+    <div class="card span8">
+      <div class="label">Recovery — last 14</div>
+      <div class="bars" id="rec-bars"></div>
+      <div class="legend"><span><i style="background:var(--recover)"></i>green ≥67</span><span><i style="background:var(--warn)"></i>yellow 34–66</span><span><i style="background:var(--low)"></i>red &lt;34</span></div>
+    </div>
+
+    <!-- Body measurements -->
+    <div class="card span4">
+      <div class="label">Body</div>
+      <div class="stat"><span class="k">Height</span><span class="v" id="b-height">—</span></div>
+      <div class="stat"><span class="k">Weight</span><span class="v" id="b-weight">—</span></div>
+      <div class="stat"><span class="k">Max HR</span><span class="v" id="b-maxhr">—</span></div>
+      <div class="stat"><span class="k">Email</span><span class="v" id="b-email" style="font-size:11px">—</span></div>
+    </div>
+
+    <!-- Sleep stages -->
+    <div class="card span6">
+      <div class="label">Sleep stages — last night</div>
+      <div class="sleep-stages" id="slp-stages"></div>
+      <div class="stat"><span class="k">Consistency</span><span class="v" id="slp-cons">—</span></div>
+      <div class="stat"><span class="k">Performance</span><span class="v" id="slp-perf2">—</span></div>
+      <div class="stat"><span class="k">Efficiency</span><span class="v" id="slp-eff2">—</span></div>
+    </div>
+
+    <!-- Workouts -->
+    <div class="card span6">
+      <div class="label">Recent workouts</div>
+      <div id="wk-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = 'https://api.prod.whoop.com/developer';
+let TOKEN = '';
+
+function api(path) {
+  return fetch(BASE + path, { headers: { Authorization: 'Bearer ' + TOKEN } })
+    .then(r => {
+      if (r.status === 401) throw new Error('401 — token invalid or expired');
+      if (r.status === 429) throw new Error('429 — rate limited, wait a moment');
+      if (!r.ok) throw new Error(r.status + ' — request failed for ' + path);
+      return r.json();
+    });
+}
+
+function connect() {
+  const t = document.getElementById('token').value.trim();
+  if (!t) { showGateErr('Paste a token first.'); return; }
+  TOKEN = t;
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  loadAll();
+}
+
+function logout() {
+  TOKEN = '';
+  document.getElementById('token').value = '';
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('gate').classList.remove('hidden');
+  document.getElementById('gate-err').textContent = '';
+}
+
+function showGateErr(m) { document.getElementById('gate-err').textContent = m; }
+
+async function loadAll() {
+  const dash = document.getElementById('dash');
+  const load = document.getElementById('loading');
+  dash.classList.add('hidden');
+  load.classList.remove('hidden');
+  load.textContent = 'Pulling your data from WHOOP…';
+
+  try {
+    const [profile, body, cycles, recoveries, sleeps, workouts] = await Promise.all([
+      api('/v2/user/profile/basic').catch(() => null),
+      api('/v2/user/measurement/body').catch(() => null),
+      api('/v2/cycle?limit=14'),
+      api('/v2/recovery?limit=14'),
+      api('/v2/activity/sleep?limit=5'),
+      api('/v2/activity/workout?limit=6'),
+    ]);
+
+    renderProfile(profile, body);
+    renderCycle(cycles);
+    renderRecovery(recoveries);
+    renderSleep(sleeps);
+    renderWorkouts(workouts);
+
+    load.classList.add('hidden');
+    dash.classList.remove('hidden');
+  } catch (e) {
+    load.textContent = '⚠ ' + e.message;
+  }
+}
+
+const RC = 251.3; // 2πr, r=40
+function setArc(id, pct) {
+  document.getElementById(id).style.strokeDashoffset = RC * (1 - Math.max(0, Math.min(1, pct)));
+}
+function fmtTime(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.round((ms % 3600000) / 60000);
+  return h + 'h ' + m + 'm';
+}
+function shortDate(iso) {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function renderProfile(p, b) {
+  if (p) {
+    document.getElementById('who-name').textContent = (p.first_name || '') + ' ' + (p.last_name || '');
+    document.getElementById('b-email').textContent = p.email || '—';
+  }
+  if (b) {
+    document.getElementById('b-height').textContent = (b.height_meter ?? '—') + ' m';
+    document.getElementById('b-weight').textContent = b.weight_kilogram != null ? b.weight_kilogram.toFixed(1) + ' kg' : '—';
+    document.getElementById('b-maxhr').textContent = (b.max_heart_rate ?? '—') + ' bpm';
+  }
+}
+
+function renderCycle(data) {
+  const c = (data.records || [])[0];
+  if (!c || !c.score) return;
+  const s = c.score;
+  document.getElementById('str-num').textContent = s.strain != null ? s.strain.toFixed(1) : '—';
+  document.getElementById('str-avghr').textContent = s.average_heart_rate ?? '—';
+  document.getElementById('str-maxhr').textContent = s.max_heart_rate ?? '—';
+  setArc('str-arc', (s.strain || 0) / 21);
+}
+
+function recColor(score) {
+  if (score >= 67) return 'var(--recover)';
+  if (score >= 34) return 'var(--warn)';
+  return 'var(--low)';
+}
+
+function renderRecovery(data) {
+  const recs = (data.records || []).filter(r => r.score);
+  const latest = recs[0];
+  if (latest) {
+    const s = latest.score;
+    document.getElementById('rec-num').textContent = s.recovery_score ?? '—';
+    document.getElementById('rec-rhr').textContent = s.resting_heart_rate ?? '—';
+    document.getElementById('rec-hrv').textContent = s.hrv_rmssd_milli != null ? s.hrv_rmssd_milli.toFixed(0) : '—';
+    const sc = s.recovery_score || 0;
+    document.getElementById('rec-state').textContent = sc >= 67 ? 'Recovered' : sc >= 34 ? 'Adequate' : 'Low';
+    document.getElementById('rec-arc').setAttribute('stroke', recColor(sc));
+    setArc('rec-arc', sc / 100);
+  }
+  // trend bars (oldest -> newest)
+  const wrap = document.getElementById('rec-bars');
+  wrap.innerHTML = '';
+  recs.slice().reverse().forEach(r => {
+    const sc = r.score.recovery_score || 0;
+    const col = document.createElement('div');
+    col.className = 'bar-col';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = Math.max(2, sc) + '%';
+    bar.style.background = recColor(sc);
+    bar.title = sc + '%';
+    const x = document.createElement('div');
+    x.className = 'bar-x';
+    x.textContent = sc;
+    col.appendChild(bar); col.appendChild(x);
+    wrap.appendChild(col);
+  });
+}
+
+function renderSleep(data) {
+  const sl = (data.records || []).find(s => s.score);
+  if (!sl) return;
+  const s = sl.score;
+  document.getElementById('slp-num').textContent = s.sleep_performance_percentage ?? '—';
+  document.getElementById('slp-eff').textContent = s.sleep_efficiency_percentage != null ? s.sleep_efficiency_percentage.toFixed(0) : '—';
+  document.getElementById('slp-resp').textContent = s.respiratory_rate != null ? s.respiratory_rate.toFixed(1) : '—';
+  setArc('slp-arc', (s.sleep_performance_percentage || 0) / 100);
+
+  document.getElementById('slp-cons').textContent = (s.sleep_consistency_percentage ?? '—') + '%';
+  document.getElementById('slp-perf2').textContent = (s.sleep_performance_percentage ?? '—') + '%';
+  document.getElementById('slp-eff2').textContent = s.sleep_efficiency_percentage != null ? s.sleep_efficiency_percentage.toFixed(1) + '%' : '—';
+
+  // duration from start/end
+  if (sl.start && sl.end) {
+    document.getElementById('slp-dur').textContent = fmtTime(new Date(sl.end) - new Date(sl.start));
+  }
+
+  // stage summary bar (keys vary by API; render whatever totals exist)
+  const ss = s.stage_summary || {};
+  const stages = [
+    ['total_slow_wave_sleep_time_milli', 'var(--sleep)'],
+    ['total_rem_sleep_time_milli', '#b49cff'],
+    ['total_light_sleep_time_milli', '#5a4a9e'],
+    ['total_awake_time_milli', 'var(--line)'],
+  ];
+  const total = stages.reduce((a, [k]) => a + (ss[k] || 0), 0);
+  const wrap = document.getElementById('slp-stages');
+  wrap.innerHTML = '';
+  if (total > 0) {
+    stages.forEach(([k, c]) => {
+      if (!ss[k]) return;
+      const d = document.createElement('div');
+      d.style.width = (ss[k] / total * 100) + '%';
+      d.style.background = c;
+      d.title = k.replace(/total_|_time_milli/g, '').replace(/_/g, ' ') + ': ' + fmtTime(ss[k]);
+      wrap.appendChild(d);
+    });
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function renderWorkouts(data) {
+  const list = document.getElementById('wk-list');
+  list.innerHTML = '';
+  const wks = (data.records || []).filter(w => w.score);
+  if (!wks.length) { list.innerHTML = '<div class="date" style="padding:10px 0">No recent workouts.</div>'; return; }
+  wks.forEach(w => {
+    const row = document.createElement('div');
+    row.className = 'wk';
+    row.innerHTML = `
+      <div>
+        <div class="name">${w.sport_name || 'Workout'}</div>
+        <div class="date">${shortDate(w.start)}</div>
+      </div>
+      <div class="strain">${w.score.strain != null ? w.score.strain.toFixed(1) : '—'}</div>`;
+    list.appendChild(row);
+  });
+}
+
+// Enter key submits token
+document.getElementById('token').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
+</script>
+</body>
+</html>
