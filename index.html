@@ -307,7 +307,10 @@
 </div>
 
 <script>
-const BASE = 'https://api.prod.whoop.com/developer';
+// To route through the local Node proxy (proxy.js) and avoid CORS errors,
+// set USE_PROXY = true and run `node proxy.js` first.
+const USE_PROXY = false;
+const BASE = (USE_PROXY ? 'http://localhost:8787' : 'https://api.prod.whoop.com') + '/developer';
 let TOKEN = '';
 
 function api(path) {
